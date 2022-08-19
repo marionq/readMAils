@@ -7,20 +7,30 @@ import pandas as pd
 import numpy as np
 import sys
 
-# Parametros de entrada para la fecha del reporte
+# Parametros de fecha
 fecha = sys.argv[1]
 dateOut = datetime.strptime(fecha, '%d/%m/%Y')
 
 outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
-inbox = outlook.GetDefaultFolder(6).Folders.Item("OCI")
+
+# Validar parametro directorio
+if len(sys.argv) > 2:
+    dir = sys.argv[2]
+    inbox = outlook.GetDefaultFolder(6).Folders.Item(dir)
+else:
+    inbox = outlook.GetDefaultFolder(6)
+
 messages = inbox.Items
+
 idsVol = []
 jsonVol = []
+cont = 0
 
 for message in messages:
     strSubject = message.subject
     pattern = regex.compile(r'\{(?:[^{}]|(?R))*\}')
     if 'OCI Event Notification' in strSubject:
+        cont += 1
         #print (message.body)
         body = message.body
         jsonBody = pattern.findall(body)
@@ -37,6 +47,10 @@ for message in messages:
                     'backupState': dicBody["data"]["additionalDetails"]["backupState"]
                 }
             )
+
+if cont <= 0:
+    print("No hay mensajes sobre OCI con la fecha requerida en la bandeja de entrada, por favor seleccione algun otro directorio")
+    quit()
 
 # Conversion de list Dictionary a dataframe
 df = pd.DataFrame(jsonVol, dtype="datetime64[ns]")
